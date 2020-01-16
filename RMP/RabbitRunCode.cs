@@ -42,14 +42,14 @@ buffer_delete(_buffer);";
         public const string savepointdestroyer = "if (global.CurrentFile == \"savedfile4.sav\")instance_destroy()";
         public const string yote =
 @"
-seconds = 0;
-minutes = 0;
-hours = 0;
-timetext = """";
-tiem = 0;
-if (showtime)show_message(""hi"");
 if (lastroom == rm_house && room != rm_mainmenu && global.inrun == false){
+    lastroom = -1;
     global.inrun = true;
+    seconds = 0;
+    minutes = 0;
+    hours = 0;
+    timetext = """";
+    tiem = 0;
 } else if (room == rm_ending){
     seconds = 0;
     minutes = 0;
@@ -64,7 +64,7 @@ if (lastroom == rm_house && room != rm_mainmenu && global.inrun == false){
 if ((global.inrun || showtime) && !global.GamePaused || (beenhome && room != rm_house)) {
     if (beenhome && !global.GamePaused && global.inrun)tiem+=delta_time/1000000;
     seconds = tiem % 60
-    minutes = tiem div 60 % 60;
+    minutes = tiem div 60000;
     hours = tiem div 3600
     timetext = string(hours)" + "+\":\"+string_replace(string_format(minutes,2,0),\" \",\"0\")+\":\"+string_replace(string_format(seconds,2,3),\" \",\"0\")" +
  "}";
@@ -79,7 +79,7 @@ if (showtime){
     draw_text_transformed((xpos - 1), ypos, timetext, 0.5, 0.5, 0)
     draw_text_transformed((xpos + 1), ypos, timetext, 0.5, 0.5, 0)
     draw_text_transformed(xpos, ypos-1, timetext, 0.5, 0.5, 0)
-    draw_text_transformed(xpos, ypos, timetext, 0.5, 0.5, 0)
+    draw_text_transformed(xpos, ypos+1, timetext, 0.5, 0.5, 0)
     draw_set_color(0x00FFFFFF)
     draw_text_transformed(xpos, ypos, timetext, 0.5, 0.5, 0)
 }

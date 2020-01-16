@@ -183,7 +183,7 @@ namespace RMP
             go.Visible = true;
             CreateEvent(RabbitRunCode.coinstants, data, go, EventType.Create, 0u);
             CreateEvent(RabbitRunCode.yote, data, go, EventType.Other, (uint)EventSubtypeOther.RoomEnd);
-            CreateEvent("if (room == rm_house){showtime = true;beenhome = true;show_message(\"hi lol\")}if (room == rm_mainmenu)beenhome = false;lastroom = room;",
+            CreateEvent("if (room == rm_house){showtime = true;beenhome = true;}if (room == rm_mainmenu)beenhome = false;lastroom = room;",
                 data, go, EventType.Other, (uint)EventSubtypeOther.RoomStart);
             CreateEvent(RabbitRunCode.constantDrawer, data, go, EventType.Draw, (uint)EventSubtypeDraw.DrawGUI);
             CreateEvent(RabbitRunCode.constantStepper, data, go, EventType.Step, (uint)EventSubtypeStep.Step);
