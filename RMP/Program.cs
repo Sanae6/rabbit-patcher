@@ -22,13 +22,16 @@ namespace RMP
         {
             if (args.Length < 1)
             {
-                Console.Error.WriteLine("Usage: RMP.exe <path to data.win> [action]...\n" +
-                    "If no actions are provided, it will patch in all of the speedrunning features" +
-                    "\nExpects a data file for Oh Jeez, Oh No, My Rabbits Are Gone\n" +
-                    "Example: RMP.exe \"C:\\Program Files(x86)\\Steam\\steamapps\\common\\MyRabbitsAreGone\\data.win\"\n" +
-                    "Actions:\n" +
-                    "  clock - Adds a speedrun clock to the top left of the screen (activates once you leave the house)\n" +
-                    "  intro - Skips the intro in speedrun mode");
+                Console.Error.WriteLine(@"Usage: RMP.exe <path to data.win> [action]...
+If no actions are provided, it will patch in all of the speedrunning features
+Expects a data file for Oh Jeez, Oh No, My Rabbits Are Gone\n
+Example: RMP.exe ""C:\\Program Files(x86)\\Steam\\steamapps\\common\\MyRabbitsAreGone\\data.win""
+Actions:
+    clock - Adds a speedrun clock to the top left of the screen (activates once you leave the house)
+    intro - Skips the intro in speedrun mode
+    frame - Toggles the framerate cap when you press ""P""
+    decomp - Decompiles all of the code to decomp/ where your data.win is (not enabled by default)
+Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
                 return;
             }
             string baseloc = args[0];
@@ -38,7 +41,7 @@ namespace RMP
             }else
             {
                 actions = new List<string>(){
-                    "",
+                    "frame",
                     "clock",
                     "intro"
                 };
@@ -90,7 +93,7 @@ namespace RMP
                             Console.WriteLine("Writing " + uc.Name.Content);
                             try
                             {
-                                File.WriteAllText("./decomp/" + uc.Name.Content, Decompiler.Decompile(uc, new DecompileContext(data, false)));
+                                File.WriteAllText(baseloc+"/decomp/" + uc.Name.Content, Decompiler.Decompile(uc, new DecompileContext(data, false)));
                             }
                             catch(Exception e)
                             {
@@ -99,8 +102,11 @@ namespace RMP
                             Console.WriteLine("Wrote " + uc.Name.Content);
                         }
                         break;
+                    case "frame":
+                        FramecapRemover(data);
+                        break;
                     default:
-                        Console.Error.WriteLine("Invalid action! Run RMP.exe with no arguments to see proper usage of the program.");
+                        Console.Error.WriteLine($"Invalid action {actions[i]}\n Run RMP.exe with no arguments to see proper usage of the program.");
                         return;
                 }
             }
@@ -203,6 +209,12 @@ namespace RMP
             
         }
 
+        public static void FramecapRemover(UndertaleData data)
+        {
+            var cst = data.GameObjects.ByName("obj_constant");
+            cst.EventHandlerFor(EventType.Create, data.Strings, data.Code, data.CodeLocals).AppendGML(RabbitRunCode.speedycreate, data);
+            cst.EventHandlerFor(EventType.Step, data.Strings, data.Code, data.CodeLocals).AppendGML(RabbitRunCode.speedystepper, data);
+        }
         public static void ReplaceInGML(string str1, string str2,UndertaleCode code, UndertaleData data)
         {
             string decomp = Decompiler.Decompile(code, new DecompileContext(data, false));

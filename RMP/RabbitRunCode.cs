@@ -63,10 +63,10 @@ if (lastroom == rm_house && room != rm_mainmenu && global.inrun == false){
 @"
 if ((global.inrun || showtime) && !global.GamePaused || (beenhome && room != rm_house)) {
     if (beenhome && !global.GamePaused && global.inrun)tiem+=delta_time/1000000;
-    seconds = tiem % 60
-    minutes = tiem div 60000;
-    hours = tiem div 3600
-    timetext = string(hours)" + "+\":\"+string_replace(string_format(minutes,2,0),\" \",\"0\")+\":\"+string_replace(string_format(seconds,2,3),\" \",\"0\")" +
+    seconds = tiem;
+    minutes = floor(seconds / 60);
+    hours = floor(minutes / 60);
+    timetext = string(hours)" + "+\":\"+string_replace(string_format(minutes%60,2,0),\" \",\"0\")+\":\"+string_replace(string_format(seconds%60,2,3),\" \",\"0\")" +
  "}";
         public const string constantDrawer =
 @"
@@ -92,5 +92,11 @@ if (global.inrun){
 }
 ";
         public const string coinstants = "beenhome = false;showtime = false;timetext=\"\";tiem=0;";
+        public const string speedycreate = "superspeed = false;";
+        public const string speedystepper = @"
+if (keyboard_check_pressed(ord(""P""))){
+    superspeed = !superspeed;
+    game_set_speed(superspeed ? 1000:60,gamespeed_fps);
+}";
     }
 }
