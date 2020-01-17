@@ -1,7 +1,7 @@
 # Rabbit Patcher
 ### A patching tool for Oh Jeez, Oh No, My Rabbits Are Gone
 
-##Features:
+## Features:
 - Speedbun Mode 
 	- Removes savepoints and clock is added if in this 
 - Speedrun Clock
