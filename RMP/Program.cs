@@ -16,42 +16,100 @@ namespace RMP
 {
     class Program
     {
-
+        static string baseloc;
         [STAThread]
         static void Main(string[] args)
         {
-            if (args.Length < 1)
+            bool israel = false;
+            if (args.Length < 1 || args.Contains("help"))
             {
-                Console.Error.WriteLine(@"Usage: RMP.exe <path to data.win> [action]...
-If no actions are provided, it will patch in all of the speedrunning features
-Expects a data file for Oh Jeez, Oh No, My Rabbits Are Gone\n
-Example: RMP.exe ""C:\\Program Files(x86)\\Steam\\steamapps\\common\\MyRabbitsAreGone\\data.win""
-Actions:
-    clock - Adds a speedrun clock to the top left of the screen (activates once you leave the house)
-    intro - Skips the intro in speedrun mode
-    frame - Toggles the framerate cap when you press ""P""
-    decomp - Decompiles all of the code to decomp/ where your data.win is (not enabled by default)
-Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
-                return;
-            }
-            string baseloc = args[0];
+                Console.WriteLine(@"Sanae's Disappearing Rabbit Patcher v1.1
+A game patcher for Oh Jeez, Oh No, My Rabbits Are Gone!
+Command Line Usage: RMP.exe <path to data.win> [patches]
+The path to the data.win file should be where you downloaded your game.
+If you downloaded it on Steam, look up how to get to a game's local files.
+Patches available are:
+- all - default option, applies all patches, all must be the first patch in the command
+  all other supplied patches will be ignored
+  if you want to specific patches, please type them instead of using all
+- speedrun - the main patch for speedrunning, some patches have a dependency on this one
+- intro - skips the intro in speedrunning mode (depends on speedrun)
+- clock - adds a clock to the top left of the window (depends on speedrun)
+- frame - press P to change maximum frame speed between 1000 and 60
+- debug - adds several debug options to the game (disabled by default) (see github readme for more info)
+- color - a cute little bunny color changer, randomized on room (re)entry
+- nosave - prevents savepoints from being created (disabled by default)
+- decomp - dumps all game code to a folder inside current directory (disabled by default)
+- everything - runs *every* patch/action, unlike all, which just runs all non-severe actions/patches
+- every - everything except for the decomp action
+- ever - every but no decomp and no debug
+");
+                if (args.Length == 1 && args[0] != "help")
+                {
+                    Console.WriteLine("Press any key to exit");
+                    Console.ReadKey();
+                    return;
+                }
+                var ofd = new OpenFileDialog();
+                ofd.Title = "Locate your data.win file";
+                ofd.Filter = "data.win|data.win";
+                DialogResult dr = ofd.ShowDialog();
+                if (dr == DialogResult.Cancel)
+                {
+                    return;
+                }
+                baseloc = ofd.FileName;
+                israel = true;
+            }else baseloc = args[0];
             List<string> actions;
-            if (args.Length > 1) {
-                actions = args.ToList();
-            }else
             {
-                actions = new List<string>(){
+                if (israel || args.Length == 1 || (args[1] == "all")) actions = new List<string>(){
+                    "speedrun",
                     "frame",
+                    "color",
                     "clock",
                     "intro"
                 };
+                else if (args[1] == "everything")
+                {
+                    actions = new List<string>()
+                    {
+                        "speedrun",
+                        "frame",
+                        "color",
+                        "clock",
+                        "intro",
+                        "debug",
+                        "nosave",
+                        "decomp"
+                    };
+                }
+                else if (args[1] == "every")
+                {
+                    actions = new List<string>()
+                    {
+                        "speedrun",
+                        "frame",
+                        "color",
+                        "clock",
+                        "intro",
+                        "debug",
+                        "nosave"
+                    };
+                }
+                else
+                {
+                    actions = new List<string>(){
+                        ""
+                    };
+                    actions.AddRange(args.Skip(1));
+                }
             }
             if (!Path.HasExtension(baseloc) || !Directory.Exists(Path.GetDirectoryName(baseloc)))
             {
                 Console.Error.WriteLine("Invalid data.win path!\n"+baseloc);
                 return;
             }
-            //DialogResult dr = ofd.ShowDialog();
             baseloc = Path.GetDirectoryName(baseloc)+"\\";
             if (!File.Exists(baseloc + "data.win.orig")) if (File.Exists(baseloc + "data.win"))File.Move(baseloc + "data.win", baseloc + "data.win.orig");
             else{
@@ -66,24 +124,46 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
             File.Delete(baseloc + "data.win");
             if (data.GeneralInfo.DisplayName.Content != "My Rabbits Are Gone")
             {
-                Console.Error.WriteLine("This data.win is not from the game!!");
+                Console.Error.WriteLine("This data.win is not from Oh Jeez, Oh No, My Rabbits Are Gone\nPlease provide that one instead.");
+                File.Copy(baseloc + "data.win.orig", baseloc + "data.win");
                 return;
             }
-            int uei = 0;
-            string[] usedActions = new string[5];
-            SpeedrunPatches(data);
-            for (int i = 1; i < actions.Count; i++)
+            
+            List<string> usedActions = new List<string>();
+            var gi = new UndertaleGlobalInit();
+            var code = new UndertaleCode();
+            code.ReplaceGML("global.patched = true",data);
+            code.Name = data.Strings.MakeString("gml_global_set_patched");
+            gi.Code = code;
+            bool speedran = false;
+            for (int i = 0; i < actions.Count; i++)
             {
-                if (usedActions.Contains(actions[i])) continue;
-                usedActions[uei++] = actions[i];//prevent repatching actions that are already patched
-                Console.WriteLine(actions[i]);
+                if (actions[i] != "")
+                {
+                    if (usedActions.Contains(actions[i])) continue;
+                    usedActions.Add(actions[i]);//prevent repatching actions that are already patched
+                    Console.WriteLine(actions[i]);
+                }
                 switch (actions[i])
                 {
+                    case "speedrun":
+                        speedran = true;
+                        SpeedrunPatches(data);
+                        break;
+                    case "debug":
+                        DebugPatches(data);
+                        break;
                     case "clock":
+                        if (!speedran) YUNORAN();
                         ClockPatches(data);
                         break;
                     case "intro":
+                        if (!speedran) YUNORAN();
                         IntroPatch(data);
+                        break;
+                    case "nosave":
+                        if (!speedran) YUNORAN();
+                        SavePointPatch(data);
                         break;
                     case "decomp":
                         Directory.CreateDirectory("./decomp/");
@@ -105,8 +185,17 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
                     case "frame":
                         FramecapRemover(data);
                         break;
+                    case "color":
+                        ColorRandomizer(data);
+                        break;
+                    case "multiplayer":
+                        Console.WriteLine("maybe one day, not today 😭");
+                        break;
+                    case "":
+                        break;
                     default:
                         Console.Error.WriteLine($"Invalid action {actions[i]}\n Run RMP.exe with no arguments to see proper usage of the program.");
+                        File.Copy(baseloc + "data.win.orig", baseloc + "data.win");
                         return;
                 }
             }
@@ -115,15 +204,43 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
             Console.WriteLine("Wrote data.win! A new option has been added to the main menu.");
         }
 
+        private static void YUNORAN()
+        {
+            File.Copy(baseloc + "data.win.orig", baseloc + "data.win");
+            Console.Error.WriteLine(@"You need to run the speedrun patch first, so put it right after the data.win location instead
+so that the dependent patches can work without issue.
+
+Press any key to continue...");
+            Console.ReadKey();
+            Environment.Exit(1);
+        }
+
         private static void IntroPatch(UndertaleData data)
         {
+            Console.WriteLine("for skipping intros in normal saves on version 1.1.0.2 and up, see SETTINGS>GAME OPTIONS>Speedrun mode");
             UndertaleCode ea = data.Code.ByName("gml_Script_start_new_game");
             ReplaceInGML("loadroom = rm_intro", "if (global.CurrentFile == \"savedfile4.sav\")loadroom = rm_house;\n" +
                 "else loadroom = rm_intro", ea, data);
         }
+        public static void DebugPatches(UndertaleData data)
+        {
+            UndertaleCode ee = data.Code.ByName("gml_Object_obj_menus_Create_0");
+            ReplaceInGML("1, 2], [\"\", 9],", "1, 2], [\"EXTRAS\", 1, 9], ", ee, data);
+            ee.UpdateAddresses();
+
+            data.Code.ByName("gml_Object_obj_constant_Draw_64").AppendGML(RabbitRunCode.constBruhwer, data);
+        }
 
         public static void SpeedrunPatches(UndertaleData data)
         {
+            UndertaleScript setboi = new UndertaleScript();
+            setboi.Name = data.Strings.MakeString("set_speedrun_category");
+            setboi.Code = new UndertaleCode();
+            setboi.Code.Name = data.Strings.MakeString("gml_Script_set_speedrun_category");
+            setboi.Code.ReplaceGML(RabbitRunCode.set_speedrun_category, data);
+            data.Code.Add(setboi.Code);
+            data.Scripts.Add(setboi);
+
             UndertaleScript sprun = new UndertaleScript();
             sprun.Name = new UndertaleString("menu_speedrun_script");
             data.Strings.Add(sprun.Name);
@@ -140,24 +257,24 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
             ae.UpdateAddresses();
 
             UndertaleCode ee = data.Code.ByName("gml_Object_obj_mainmenus_Create_0");
-            ReplaceInGML("GAME\", 1, 8],", "GAME\", 1, 8], [\"SPEEDBUN\", 0, " + data.Scripts.IndexOf(sprun) + "], ", ee, data);
+            ReplaceInGML("GAME\", 1, 8],", "GAME\", 1, 8], [\"SPEEDBUN\", 1, 19], ", ee, data);
             ee.UpdateAddresses();
-
-            ee = data.Code.ByName("gml_Object_obj_menus_Create_0");
-            ReplaceInGML("0, 171],", "0, 171], [\"EXTRAS\", 1, 8], ", ee, data);
-            ee.UpdateAddresses();
+            ReplaceInGML("i = 0",RabbitRunCode.speedrunMenuInit,ee,data);
 
             UndertaleCode ie = data.Code.ByName("gml_Script_cKeys_beginstep");
             ie.AppendGML(RabbitRunCode.tasBeginStepInput, data);
 
             UndertaleCode oe = data.Code.ByName("gml_Object_obj_init_Create_0");
-            oe.AppendGML("global.playRun = false;\nglobal.watchRun = false;\nglobal.speedrunning = true;global.inrun = false", data);
+            oe.AppendGML(@"global.playRun = false;
+global.watchRun = false;
+global.speedrunning = true;
+global.inrun = false;
+global.onehun = false;//one hundred percent
+global.allbun = false;//all cuties
+global.anyper = false;//any percent", data);
 
             UndertaleCode ue = data.Code.ByName("gml_Script_SaveStringToFile");
             ue.ReplaceGML(RabbitRunCode.saveStringFile, data);
-
-            UndertaleCode ye = data.Code.ByName("gml_Object_objpre_savepoint_Create_0");
-            ye.ReplaceGML(RabbitRunCode.savepointdestroyer, data);
 
             UndertaleSprite mico = data.Sprites.ByName("spr_menuicons");
             UndertaleSprite.TextureEntry te = new UndertaleSprite.TextureEntry();
@@ -178,6 +295,11 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
             data.TexturePageItems.Add(te.Texture);
             mico.Textures.Insert(2,te);
         }
+        public static void SavePointPatch(UndertaleData data)
+        {
+            UndertaleCode ye = data.Code.ByName("gml_Object_objpre_savepoint_Create_0");
+            ye.ReplaceGML(RabbitRunCode.savepointdestroyer, data);
+        }
         public static void ClockPatches(UndertaleData data)
         {
             UndertaleGameObject go = new UndertaleGameObject();
@@ -185,17 +307,23 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
             go.Sprite = null;
             go.Persistent = true;
             go.CollisionShape = 0;
+            go.Depth = -1;
             go.Awake = true;
             go.Visible = true;
             CreateEvent(RabbitRunCode.coinstants, data, go, EventType.Create, 0u);
             CreateEvent(RabbitRunCode.yote, data, go, EventType.Other, (uint)EventSubtypeOther.RoomEnd);
-            CreateEvent("if (room == rm_house){showtime = true;beenhome = true;}if (room == rm_mainmenu)beenhome = false;lastroom = room;",
+            CreateEvent(RabbitRunCode.rabstart,
                 data, go, EventType.Other, (uint)EventSubtypeOther.RoomStart);
-            CreateEvent(RabbitRunCode.constantDrawer, data, go, EventType.Draw, (uint)EventSubtypeDraw.DrawGUI);
+            CreateEvent(RabbitRunCode.constantDrawer, data, go, EventType.Draw, (uint)EventSubtypeDraw.DrawGUIEnd);
             CreateEvent(RabbitRunCode.constantStepper, data, go, EventType.Step, (uint)EventSubtypeStep.Step);
+            CreateEvent(RabbitRunCode.doneThisShit, data, go, EventType.Other, (uint)EventSubtypeOther.User0);
             data.GameObjects.Add(go);
+            data.Code.ByName("gml_Script_pausegame").AppendGML("instance_activate_object(obj_clock);", data);
             UndertaleCode c = data.Code.ByName("gml_Script_goto_mainmenu");
             c.AppendGML(RabbitRunCode.gohomebyebye, data);
+            UndertaleCode endingCutscene = data.Code.ByName("gml_RoomCC_rm_n4_760_Create");
+            ReplaceInGML("t_scene_info = [", @"t_scene_info = [[cutscene_checkiflist, obj_constant.flagList, 191, 1, 1],[cutscene_activate_userevent, obj_clock,0],", data.Code.ByName("gml_RoomCC_rm_n4_760_Create"), data);
+            ReplaceInGML("t_scene_info = [", @"t_scene_info = [[cutscene_activate_userevent, obj_clock,0],", data.Code.ByName("gml_RoomCC_rm_n5_33_Create"), data);
             var house = data.Rooms.ByName("rm_init");
             UndertaleRoom.GameObject rogo = new UndertaleRoom.GameObject
             {
@@ -215,27 +343,22 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
             cst.EventHandlerFor(EventType.Create, data.Strings, data.Code, data.CodeLocals).AppendGML(RabbitRunCode.speedycreate, data);
             cst.EventHandlerFor(EventType.Step, data.Strings, data.Code, data.CodeLocals).AppendGML(RabbitRunCode.speedystepper, data);
         }
+
+        public static void ColorRandomizer(UndertaleData data)
+        {
+            //set random image_blend in obj_rabbitb, rabbit drawing doesn't depend on some random values
+            data.GameObjects.ByName("obj_rabbitb").EventHandlerFor(EventType.Create,data.Strings,data.Code,data.CodeLocals).AppendGML(RabbitRunCode.colorBlend, data);
+        }
+
         public static void ReplaceInGML(string str1, string str2,UndertaleCode code, UndertaleData data)
         {
             string decomp = Decompiler.Decompile(code, new DecompileContext(data, false));
             decomp = decomp.Replace(str1,str2);
             code.ReplaceGML(decomp, data);
+            code.UpdateAddresses();
         }
         public static void CreateEvent(string gml, UndertaleData data, UndertaleGameObject obj, EventType type,uint subtype)
         {
-            //UndertaleGameObject.Event evt = new UndertaleGameObject.Event();
-            //UndertaleGameObject.EventAction ea = new UndertaleGameObject.EventAction();
-            //evt.EventSubtype = subtype;
-            //ea.CodeId = new UndertaleCode();
-            //ea.CodeId.Name = data.Strings.MakeString("gml_Object_" + obj.Name.Content + "_" + type.ToString() + "_" + subtype);
-            //data.Code.Add(ea.CodeId);
-            //UndertaleCodeLocals cl = new UndertaleCodeLocals();
-            //cl.Name = data.Strings.MakeString(ea.CodeId.Name.Content);
-            //data.CodeLocals.Add(cl);
-            //CompileContext ctx = Compiler.CompileGMLText(gml, new CompileContext(data, ea.CodeId));
-            //ea.CodeId.Replace(Assembler.Assemble(ctx.ResultAssembly, data));
-            //evt.Actions.Add(ea);
-            //obj.Events[(int)type].Add(evt);
             UndertaleCode c = obj.EventHandlerFor(type,subtype, data.Strings, data.Code, data.CodeLocals);
             c.ReplaceGML(gml, data);
         }
@@ -243,6 +366,9 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
 }
 
 /**
+ * Legend
+ * ---------
+ * 📌 = low priority, but on the lis
  * TODO
  * ---------
  * (probably not happening) Add speedrun rule qualification checks
@@ -250,6 +376,13 @@ Rabbit Speedrunning Tools v1.0 by @Sanae#4092");
  * ✔ Make the speedrun clock start when you enter the house at the start of the game
  * ?? Make the speedrun clock end when you enter the house in the sprint home
  * ✔ Skip the intro cutscene
- * Creating a replay system
+ * 📌Creating a replay system
  * Turning the replay system into a tas tool
+ * Randomize bunny colors or transformations midgame for funnies
+ * Rabbit counter
+ * 100% Run Management
+ * - Skip endings 
+ * - Do second run
+ * 
+ * Multiplayer?????
  */
